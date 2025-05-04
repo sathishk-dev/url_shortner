@@ -1,51 +1,60 @@
 const fs = require('fs');
 const path = require('path');
 const shortId = require("shortid");
+const cloudinary = require('cloudinary').v2;
 const qr = require("qr-image");
 const linkModel = require("../models/LinksModel");
 const mongoose = require('mongoose');
 
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET
+});
 
 const createShortLink = async (req, res) => {
     const { longLink } = req.body;
 
     try {
-        
         shortId.characters('0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ$@');
         const shortLink = shortId.generate();
 
+        const qrChunks = [];
         const qr_png = qr.image(`${process.env.SERVER_URL}/${shortLink}`, { type: 'png' });
 
-        const uploadDir = path.join(process.cwd(), 'uploads');
-        if (!fs.existsSync(uploadDir)) {
-            fs.mkdirSync(uploadDir);
-        }
+        qr_png.on('data', (chunk) => qrChunks.push(chunk));
 
-        const qrFileName = `${shortLink}.png`;
-        const qrFilePath = path.join(uploadDir, qrFileName);
-        const qrStream = fs.createWriteStream(qrFilePath);
-        qr_png.pipe(qrStream);
+        qr_png.on('end', async () => {
+            const qrBuffer = Buffer.concat(qrChunks);
 
-        qrStream.on('finish', async () => {
-            // Save in DB after QR is saved
-            const newLink = await linkModel.create({
-                longLink,
-                shortLink,
-                qr: `${process.env.SERVER_URL}/uploads/${qrFileName}`,
-            });
+            cloudinary.uploader.upload_stream(
+                { folder: 'short-links' },
+                async (error, result) => {
+                    if (error) {
+                        console.error('Cloudinary Upload Error:', error);
+                        return res.status(500).json({ success: false, message: "Failed to upload QR" });
+                    }
 
-            res.status(200).json({
-                success: true,
-                data: newLink
-            });
+                    const newLink = await linkModel.create({
+                        longLink,
+                        shortLink,
+                        qr: result.secure_url,
+                    });
+
+                    res.status(200).json({
+                        success: true,
+                        data: newLink
+                    });
+                }
+            ).end(qrBuffer);
         });
 
-    }
-    catch (error) {
+    } catch (error) {
         console.log("Error generating link: ", error);
         res.status(500).json({ success: false, message: "Server error" });
     }
-}
+};
+
 
 const updateClicks = async (req, res) => {
     const url = req.params.shortUrl;
