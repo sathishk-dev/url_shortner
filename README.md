@@ -61,11 +61,22 @@ VITE_CLIENT_URL = frontend url (http://localhost:5173)
 
 ```
 
-#### 📌 Example MongoDB URI:
+#### 📌 Example MongoDB Atlas URI:
 
 ```
 mongodb+srv://username:password@cluster0.mongodb.net/yourDBname?retryWrites=true&w=majority
 ```
+
+### 🔐 How to Get Your Cloudinary API Details
+
+1. Go to [https://cloudinary.com/](https://cloudinary.com/) and **Sign Up** or **Log In**.
+2. After login, go to the **Dashboard**.
+3. Copy the following details:
+
+   * **Cloud Name** → `CLOUDINARY_CLOUD_NAME`
+   * **API Key** → `CLOUDINARY_API_KEY`
+   * **API Secret** → `CLOUDINARY_API_SECRET`
+4. Paste them into your `.env` file as shown above.
 
 ---
 
